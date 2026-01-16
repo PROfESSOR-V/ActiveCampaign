@@ -264,8 +264,73 @@
       VisualFeedback.hide(2000);
     }
 
+    // Check for Auto-Paging
+    chrome.storage.local.get("ac_auto_paging", (res) => {
+      if (res.ac_auto_paging && found > 0) {
+        setTimeout(goToNextPage, 2000); // Wait a bit before navigating
+      } else if (res.ac_auto_paging && found === 0) {
+        // Stop if no data found to prevent infinite loops on empty pages
+        // But sometimes empty pages happen? Let's assume emptiness implies end or error.
+        chrome.storage.local.set({ ac_auto_paging: false });
+      }
+    });
+
     running = false;
   });
+
+  /* ---------- PAGINATION ---------- */
+
+  function goToNextPage() {
+    // 1. Precise Selector based on User Screenshot
+    // Structure: <ul class="is-atomic pager-wrap"><li class="next">...</li></ul>
+    // The 'li.next' element itself might have the click listener, or a child span/anchor.
+    // In Ember apps (which this looks like), the action is attached to the element.
+    const nextLi = document.querySelector('ul.pager-wrap li.next');
+
+    if (nextLi) {
+      if (nextLi.classList.contains('disabled')) {
+        finishPaging("Auto-Paging Complete (End of list)");
+        return;
+      }
+
+      // Try clicking the anchor/button inside if it exists, otherwise the li itself
+      // In the screenshot, there is an <span data-ember-action...> inside.
+      // Clicking the LI usually works for these pagers.
+      VisualFeedback.show("Navigating to next page...", "processing");
+      nextLi.click();
+      return;
+    }
+
+    // 2. Fallback: Try ARIA labels
+    let nextBtn = document.querySelector('button[aria-label="Next page"], a[aria-label="Next page"]');
+
+    // 3. Fallback: Standard text content
+    if (!nextBtn) {
+      const candidates = Array.from(document.querySelectorAll("button, a, div[role='button']"));
+      nextBtn = candidates.find(el => {
+        const text = el.innerText ? el.innerText.trim().toLowerCase() : "";
+        return text === "next" || text === "next >" || text === "›";
+      });
+    }
+
+    // 4. Fallback: Common classes
+    if (!nextBtn) {
+      nextBtn = document.querySelector(".pagination-next, .next-page");
+    }
+
+    if (nextBtn && !nextBtn.disabled && !nextBtn.classList.contains("disabled")) {
+      VisualFeedback.show("Navigating to next page...", "processing");
+      nextBtn.click();
+    } else {
+      finishPaging("Auto-Paging Complete");
+    }
+  }
+
+  function finishPaging(msg) {
+    VisualFeedback.show(msg, "success");
+    VisualFeedback.hide(4000);
+    chrome.storage.local.set({ ac_auto_paging: false });
+  }
 
   observer.observe(document.body, {
     childList: true,
