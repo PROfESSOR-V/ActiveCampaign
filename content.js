@@ -266,12 +266,10 @@
 
     // Check for Auto-Paging
     chrome.storage.local.get("ac_auto_paging", (res) => {
-      if (res.ac_auto_paging && found > 0) {
-        setTimeout(goToNextPage, 2000); // Wait a bit before navigating
-      } else if (res.ac_auto_paging && found === 0) {
-        // Stop if no data found to prevent infinite loops on empty pages
-        // But sometimes empty pages happen? Let's assume emptiness implies end or error.
-        chrome.storage.local.set({ ac_auto_paging: false });
+      if (res.ac_auto_paging) {
+        // Always try to go to next page, even if 0 items found (could be empty page or slow load)
+        // goToNextPage will handle the stop condition if 'Next' button is disabled/missing
+        setTimeout(goToNextPage, 2000);
       }
     });
 
@@ -281,11 +279,19 @@
   /* ---------- PAGINATION ---------- */
 
   function goToNextPage() {
-    // 1. Precise Selector based on User Screenshot
-    // Structure: <ul class="is-atomic pager-wrap"><li class="next">...</li></ul>
-    // The 'li.next' element itself might have the click listener, or a child span/anchor.
-    // In Ember apps (which this looks like), the action is attached to the element.
-    const nextLi = document.querySelector('ul.pager-wrap li.next');
+    // 1. Precise Selectors
+    // Supports:
+    // - data-testid="ac_pagination_toolbar" (underscore)
+    // - data-testid="ac-pagination_toolbar" (hyphen - seen in latest screenshot)
+    // - .ac_pagination container
+    // - .pager-wrap
+    const nextLi = document.querySelector(
+      '[data-testid="ac_pagination_toolbar"] li.next, ' +
+      '[data-testid="ac-pagination_toolbar"] li.next, ' +
+      '.ac_pagination li.next, ' +
+      'ul.pager-wrap li.next, ' +
+      'ul.pager.wrap li.next'
+    );
 
     if (nextLi) {
       if (nextLi.classList.contains('disabled')) {
@@ -293,30 +299,24 @@
         return;
       }
 
-      // Try clicking the anchor/button inside if it exists, otherwise the li itself
-      // In the screenshot, there is an <span data-ember-action...> inside.
-      // Clicking the LI usually works for these pagers.
-      VisualFeedback.show("Navigating to next page...", "processing");
-      nextLi.click();
+      // CLICK STRATEGY:
+      // The event listener in Ember might be on the LI or the SPAN inside.
+      // Clicking the inner SPAN/Icon is safer as it bubbles up to the LI.
+      const clickableChild = nextLi.querySelector("span, a, i, svg");
+      const target = clickableChild || nextLi;
+
+      VisualFeedback.show("Clicking next page...", "processing");
+      target.click();
       return;
     }
 
     // 2. Fallback: Try ARIA labels
-    let nextBtn = document.querySelector('button[aria-label="Next page"], a[aria-label="Next page"]');
-
-    // 3. Fallback: Standard text content
-    if (!nextBtn) {
-      const candidates = Array.from(document.querySelectorAll("button, a, div[role='button']"));
-      nextBtn = candidates.find(el => {
-        const text = el.innerText ? el.innerText.trim().toLowerCase() : "";
-        return text === "next" || text === "next >" || text === "›";
-      });
-    }
-
-    // 4. Fallback: Common classes
-    if (!nextBtn) {
-      nextBtn = document.querySelector(".pagination-next, .next-page");
-    }
+    const nextBtn = document.querySelector(
+      'button[aria-label="Next page"], ' +
+      'a[aria-label="Next page"], ' +
+      '.pagination-next, ' +
+      '.next-page'
+    );
 
     if (nextBtn && !nextBtn.disabled && !nextBtn.classList.contains("disabled")) {
       VisualFeedback.show("Navigating to next page...", "processing");
