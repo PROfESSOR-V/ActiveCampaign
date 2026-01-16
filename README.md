@@ -1,0 +1,108 @@
+# ActiveCampaign CRM Extractor
+
+A Chrome extension that automatically extracts and syncs Contacts, Deals, and Tasks from the ActiveCampaign CRM interface to local storage. includes a React-based popup for viewing extracted data.
+
+## 🚀 Installation & Setup
+
+1. **Clone or Download** this repository.
+2. **Install Dependencies**:
+   ```bash
+   npm install
+   ```
+3. **Build the Popup UI**:
+   This compiles the React application in `popup/` to `popup/build/`.
+   ```bash
+   npm run build
+   ```
+4. **Load into Chrome**:
+   - Open Chrome and navigate to `chrome://extensions`.
+   - Toggle **Developer mode** in the top right.
+   - Click **Load unpacked**.
+   - Select the **root directory** of this project (the folder containing `manifest.json`).
+
+## 📖 Usage
+
+1. **Navigate** to your ActiveCampaign dashboard.
+2. Go to **Contacts**, **Deals**, or **Tasks** pages.
+3. The extension automatically detects data on the page using a `MutationObserver` and extracts it.
+4. You will see a **visual feedback notification** in the bottom-right corner when data is synced (e.g., "Synced 20 Contacts").
+5. Click the extension icon to open the popup and view the aggregated data.
+
+---
+
+## 🔍 DOM Selection Strategy
+
+The extension uses a robust scraping strategy defined in `content.js`:
+
+### 1. Observability
+- Uses a **MutationObserver** to watch `document.body` for changes.
+- This ensures compatibility with ActiveCampaign's Single Page Application (SPA) architecture, triggering extractions dynamically as content loads (hydration).
+- A hydration delay (default 1.5s) helps ensure the DOM is stable before reading.
+
+### 2. Entity Selectors
+
+| Entity | Trigger URL | Main Selector | Data Points Scraped |
+|:---|:---|:---|:---|
+| **Contacts** | `/contacts` | `tr[data-testid="c-table__row"]` | Name, Email, Phone, Owner |
+| **Deals** | `/deals` | `[class*="deal-board_column"]` | Deal ID (`/deals/123`), Title, Value, Stage, Contact Name |
+| **Tasks** | `/tasks` | `table tbody tr` | Title, Task Type, Related Entity, Assignee, Due Date, Status |
+
+> **Note**: Selectors rely on `data-testid` attributes where available (Contacts) for robustness, and class-based/structural selection for others (Deals/Tasks) where stable IDs are absent.
+
+---
+
+## 💾 Storage Schema
+
+Data is stored locally using `chrome.storage.local`. The background script (`service-worker.js`) handles data merging to prevent duplicates, ensuring that existing records are updated rather than overwritten.
+
+### Storage Keys
+- `ac_contacts`
+- `ac_deals`
+- `ac_tasks`
+
+### Data Models
+
+#### Contact Object (`ac_contacts`)
+```json
+{
+  "id": "email@example.com",  // Used as unique key
+  "name": "John Doe",
+  "email": "email@example.com",
+  "phone": "+1234567890",
+  "owner": "Sales Rep Name"
+}
+```
+
+#### Deal Object (`ac_deals`)
+```json
+{
+  "id": "1001",                 // Extracted from URL path
+  "title": "New Deal Opportunity",
+  "value": "$5,000",
+  "stage": "To Contact",
+  "contact": "Jane Smith"
+}
+```
+
+#### Task Object (`ac_tasks`)
+```json
+{
+  "id": "Call Client-2023-10-01", // Composite key (Title + DueDate)
+  "title": "Call Client",
+  "taskType": "Call",
+  "relatedTo": "Big Corp Deal",
+  "assignee": "Agent Name",
+  "dueDate": "Oct 1, 2023",
+  "status": "In Progress"
+}
+```
+
+---
+
+## 📂 Project Structure
+
+- **`content.js`**: Handles DOM observation and scraping logic. Injected into `*.activehosted.com`.
+- **`service-worker.js`**: Background script managing `chrome.storage` writes and data merging logic.
+- **`popup/`**: React application for the extension UI.
+  - **`main.jsx`**: Entry point.
+  - **`build/`**: Output directory for the Vite build (referenced by `index.html`).
