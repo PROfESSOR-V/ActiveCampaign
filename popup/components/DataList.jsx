@@ -20,14 +20,14 @@ export default function DataList({ data, activeTab, onDelete }) {
             {data.map(item => (
                 <div key={item.id} className="contact-card">
                     <div className="card-left">
-                        {/* Avatar */}
+
                         <div className="avatar">
                             {activeTab === "contacts" ? getAvatar(item.name || item.email) :
                                 activeTab === "deals" ? "$" :
                                     "T"}
                         </div>
 
-                        {/* Info */}
+
                         <div className="info">
                             {activeTab === "contacts" && (
                                 <>

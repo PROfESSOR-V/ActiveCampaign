@@ -13,7 +13,6 @@ export default function App() {
     useEffect(() => {
         const keys = ["ac_contacts", "ac_deals", "ac_tasks", "ac_auto_paging"];
 
-        // Initial fetch
         chrome.storage.local.get(keys, res => {
             setData({
                 contacts: res.ac_contacts || [],
@@ -23,10 +22,8 @@ export default function App() {
             setIsAutoPaging(res.ac_auto_paging || false);
         });
 
-        // Real-time sync listener
         const listener = (changes, area) => {
             if (area === "local") {
-                // Update data if keys change
                 if (changes.ac_contacts || changes.ac_deals || changes.ac_tasks) {
                     setData(prev => ({
                         contacts: changes.ac_contacts ? changes.ac_contacts.newValue : prev.contacts,
@@ -34,7 +31,6 @@ export default function App() {
                         tasks: changes.ac_tasks ? changes.ac_tasks.newValue : prev.tasks
                     }));
                 }
-                // Update auto-paging state if it changes externally
                 if (changes.ac_auto_paging) {
                     setIsAutoPaging(changes.ac_auto_paging.newValue);
                 }
@@ -49,7 +45,6 @@ export default function App() {
         const updated = data[activeTab].filter(i => i.id !== id);
         const newData = { ...data, [activeTab]: updated };
 
-        // Map tab name to storage key
         const keyMap = {
             contacts: "ac_contacts",
             deals: "ac_deals",

@@ -174,7 +174,6 @@
     const tasks = [];
 
     rows.forEach(row => {
-      // ---------- TITLE ----------
       const titleEl = row.querySelector(".task-title");
       let title = titleEl ? titleEl.innerText.trim() : "";
 
@@ -182,19 +181,16 @@
         title = title.split(":").slice(1).join(":").trim();
       }
 
-      // ---------- ROW TEXT ----------
       const textParts = row.innerText
         .split("\t")
         .map(t => t.trim())
         .filter(Boolean);
 
-      // ---------- TASK TYPE ----------
       const taskTypeRaw = textParts[0] || "";
       const taskType = taskTypeRaw.includes(":")
         ? taskTypeRaw.split(":")[0].trim()
         : taskTypeRaw;
 
-      // ---------- RELATED / ASSIGNEE ----------
       const relatedTo = textParts[1] || "";
 
       const assignee = textParts[1]
@@ -205,7 +201,7 @@
       const status = textParts[3] || "";
 
       tasks.push({
-        id: `${title}-${dueDate}`, // stable-enough task id
+        id: `${title}-${dueDate}`,
         title,
         taskType,
         relatedTo,
@@ -228,7 +224,7 @@
     if (running) return;
     running = true;
 
-    // wait for SPA + session hydration
+
     VisualFeedback.show("Acquiring data...", "processing");
     await wait(1500);
 
@@ -264,11 +260,8 @@
       VisualFeedback.hide(2000);
     }
 
-    // Check for Auto-Paging
     chrome.storage.local.get("ac_auto_paging", (res) => {
       if (res.ac_auto_paging) {
-        // Always try to go to next page, even if 0 items found (could be empty page or slow load)
-        // goToNextPage will handle the stop condition if 'Next' button is disabled/missing
         setTimeout(goToNextPage, 2000);
       }
     });
@@ -279,12 +272,6 @@
   /* ---------- PAGINATION ---------- */
 
   function goToNextPage() {
-    // 1. Precise Selectors
-    // Supports:
-    // - data-testid="ac_pagination_toolbar" (underscore)
-    // - data-testid="ac-pagination_toolbar" (hyphen - seen in latest screenshot)
-    // - .ac_pagination container
-    // - .pager-wrap
     const nextLi = document.querySelector(
       '[data-testid="ac_pagination_toolbar"] li.next, ' +
       '[data-testid="ac-pagination_toolbar"] li.next, ' +
@@ -299,9 +286,6 @@
         return;
       }
 
-      // CLICK STRATEGY:
-      // The event listener in Ember might be on the LI or the SPAN inside.
-      // Clicking the inner SPAN/Icon is safer as it bubbles up to the LI.
       const clickableChild = nextLi.querySelector("span, a, i, svg");
       const target = clickableChild || nextLi;
 
@@ -310,7 +294,6 @@
       return;
     }
 
-    // 2. Fallback: Try ARIA labels
     const nextBtn = document.querySelector(
       'button[aria-label="Next page"], ' +
       'a[aria-label="Next page"], ' +
